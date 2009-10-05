@@ -1,9 +1,9 @@
 /*
  * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
+ * modify it under the terms of the GNU General Public License as 
  * published by the Free Software Foundation; either version 3 of the
- * License, or (at your option) any later version.
- *
+ * License, or (at your option) any later version. 
+ * 
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
@@ -16,20 +16,20 @@ package Esercizio2;
  *
  * @author Matteo Giordano <ilmalteo at gmail.com>
  */
-public class ThreadInterrupt {
+class SleepingThread implements Runnable {
 
-    /**
-     * @param args the command line arguments
-     */
-    public static void main(String[] args) {
-        SleepingThread si = new SleepingThread();
-        Thread t = new Thread(si);
-        t.start();
+    long tempo0;
+
+    public void run() {
         try {
-            Thread.sleep(5000);
+            System.out.println("In sleep() per 10 secondi...");
+            tempo0 = System.currentTimeMillis();
+            Thread.sleep(10000);
         } catch (InterruptedException x) {
+            System.out.print("Sono trascorsi ");
+            System.out.print(System.currentTimeMillis() - tempo0);
+            System.out.println(" millisecondi.");
+            return;
         }
-        System.out.println("Interrompo l'altro thread.");
-        t.interrupt();
     }
 }
