@@ -12,7 +12,7 @@
  */
 package Esercitazione3;
 
-import com.sun.org.apache.xml.internal.serializer.ToUnknownStream;
+import java.math.BigInteger;
 import java.text.SimpleDateFormat;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
@@ -53,7 +53,7 @@ public class Esercizio1 {
                             es.submit(new FibTask(Integer.parseInt(command[1])));
                             break;
                         case FACT:
-                            es.submit(new FactTask(Integer.parseInt(command[1])));
+                            es.submit(new FactTask(command[1]));
                             break;
                         case QUIT:
                             es.shutdownNow();
@@ -81,7 +81,7 @@ class PiTask implements Runnable {
 
     double accuracy;
 
-    PiTask(int precision) {
+    public PiTask(int precision) {
         accuracy = 1 / Math.pow(10, precision);
     }
 
@@ -132,22 +132,22 @@ class FibTask implements Runnable {
 
 class FactTask implements Runnable {
 
-    long n;
+    BigInteger n;
 
-    public FactTask(int n) {
-        this.n = n;
+    public FactTask(String n) {
+        this.n = new BigInteger(n);
     }
 
-    private long fact(long n) {
-        if (n == 0) {
-            return 1;
+    private BigInteger fact(BigInteger n) {
+        if (n == BigInteger.ZERO) {
+            return BigInteger.ONE;
         }
-        return n * fact(n - 1);
+        return n.multiply(fact(n.subtract(BigInteger.ONE)));
     }
 
     public void run() {
         long time0 = System.currentTimeMillis();
-        long result = fact(n);
+        BigInteger result = fact(n);
         long time = System.currentTimeMillis();
         System.out.println("Nome del thread: " + Thread.currentThread().getName());
         System.out.println("Istante di creazione: " + SimpleDateFormat.getTimeInstance().format(time0));
