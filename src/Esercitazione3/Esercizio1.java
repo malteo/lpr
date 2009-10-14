@@ -24,12 +24,14 @@ import java.util.concurrent.Executors;
  */
 public class Esercizio1 {
 
+    // un "trucco" per poter fare uno switch su String
     public enum Command {
 
-        PI, FIB, FACT, QUIT, HELP, NOVALUE;
+        PI, FIB, FACT, QUIT, NOVALUE;
 
         public static Command toCommand(String str) {
             try {
+                // si può scrivere il comando anche in minuscolo
                 return valueOf(str.toUpperCase());
             } catch (Exception ex) {
                 return NOVALUE;
@@ -38,11 +40,13 @@ public class Esercizio1 {
     }
 
     public static void main(String[] args) {
+        // uno scanner per leggere gli input
         Scanner sc = new Scanner(System.in);
         ExecutorService es = Executors.newCachedThreadPool();
         System.out.println("Sintassi: [ PI:precisione | FIB:n | FACT:n | HELP | QUIT ]");
         try {
             while (sc.hasNext()) {
+                // ottiene un array di stringhe splittando il comando sui ":"
                 String[] command = sc.nextLine().split(":");
                 try {
                     switch (Command.toCommand(command[0])) {
@@ -53,20 +57,19 @@ public class Esercizio1 {
                             es.submit(new FibTask(Integer.parseInt(command[1])));
                             break;
                         case FACT:
+                            // qui passo proprio la String, ci penserà il
+                            // costruttore di BigInteger a convertirlo in numero
                             es.submit(new FactTask(command[1]));
                             break;
                         case QUIT:
                             es.shutdownNow();
                             sc.close();
                             break;
-                        case HELP:
-                            System.out.println("Sintassi: [ PI:precisione | FIB:n | FACT:n | HELP | QUIT ]");
-                            break;
                         default:
-                            System.out.println("command not found (cit.)");
+                            System.out.println("Sintassi: [ PI:precisione | FIB:n | FACT:n | QUIT ]");
                     }
                 } catch (NumberFormatException e) {
-                    System.out.println("L'argomento dev'essere un Integer.");
+                    System.out.println("L'argomento dev'essere un numero.");
                 } catch (ArrayIndexOutOfBoundsException e) {
                     System.out.println("Manca l'argomento.");
                 }
@@ -95,6 +98,7 @@ class PiTask implements Runnable {
         }
         long time = System.currentTimeMillis();
         System.out.println("Nome del thread: " + Thread.currentThread().getName());
+        // formatta currentTimeMillis() in hh.mm.ss
         System.out.println("Istante di creazione: " + SimpleDateFormat.getTimeInstance().format(time0));
         System.out.println("Istante di completamento: " + SimpleDateFormat.getTimeInstance().format(time));
         System.out.println("Approssimazione di pi = " + pi);
@@ -132,6 +136,7 @@ class FibTask implements Runnable {
 
 class FactTask implements Runnable {
 
+    // uso BigInteger perché mi serve un numero "longer than long"
     BigInteger n;
 
     public FactTask(String n) {
@@ -139,9 +144,12 @@ class FactTask implements Runnable {
     }
 
     private BigInteger fact(BigInteger n) {
+        // rappresentazioni di 0 e 1 in BigInteger
         if (n == BigInteger.ZERO) {
             return BigInteger.ONE;
         }
+        // operazioni di moltiplicazione e sottrazione per i BigInteger
+        // equivale a n * fact(n - 1)
         return n.multiply(fact(n.subtract(BigInteger.ONE)));
     }
 
