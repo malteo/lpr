@@ -10,26 +10,27 @@
  * General Public License for more details:
  * http://www.gnu.org/licenses/gpl.txt
  */
-package Esercizio2;
+package Esercitazione2;
 
 /**
  *
  * @author Matteo Giordano <ilmalteo at gmail.com>
  */
-class SleepingThread implements Runnable {
+class CalculatingThread implements Runnable {
 
-    long tempo0;
+    double accuracy;
+
+    CalculatingThread(double accuracy) {
+        this.accuracy = accuracy;
+    }
 
     public void run() {
-        try {
-            System.out.println("In sleep() per 10 secondi...");
-            tempo0 = System.currentTimeMillis();
-            Thread.sleep(10000);
-        } catch (InterruptedException x) {
-            System.out.print("Sono trascorsi ");
-            System.out.print(System.currentTimeMillis() - tempo0);
-            System.out.println(" millisecondi.");
-            return;
+        double pi = 0.0, sign = 1.0, rec = 1.0;
+        while (!(Thread.interrupted()) && Math.abs(pi - Math.PI) > accuracy) {
+            pi += sign * (4.0 / rec);
+            sign *= -1.0;
+            rec += 2.0;
         }
+        System.out.println("Approssimazione di pi = " + pi);
     }
 }

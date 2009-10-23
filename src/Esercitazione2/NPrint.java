@@ -10,27 +10,27 @@
  * General Public License for more details:
  * http://www.gnu.org/licenses/gpl.txt
  */
-package Esercizio3;
+package Esercitazione2;
+
+import javax.swing.JOptionPane;
 
 /**
  *
  * @author Matteo Giordano <ilmalteo at gmail.com>
  */
-class CalculatingThread implements Runnable {
+public class NPrint {
 
-    double accuracy;
+    /**
+     * @param args the command line arguments
+     */
+    public static void main(String[] args) {
+        int K = Integer.parseInt(JOptionPane.showInputDialog("Numero di thread:"));
+        int N = Integer.parseInt(JOptionPane.showInputDialog("Numero di numeri:"));
 
-    CalculatingThread(double accuracy) {
-        this.accuracy = accuracy;
-    }
-
-    public void run() {
-        double pi = 0.0, sign = 1.0, rec = 1.0;
-        while (!(Thread.interrupted()) && Math.abs(pi - Math.PI) > accuracy) {
-            pi += sign * (4.0 / rec);
-            sign *= -1.0;
-            rec += 2.0;
+        for (int i = 1; i <= K; i++) {
+            NumberPrinter np = new NumberPrinter(N);
+            Thread t = new Thread(np, "T" + i);
+            t.start();
         }
-        System.out.println("Approssimazione di pi = " + pi);
     }
 }

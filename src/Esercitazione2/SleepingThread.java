@@ -10,27 +10,26 @@
  * General Public License for more details:
  * http://www.gnu.org/licenses/gpl.txt
  */
-package Esercizio1;
-
-import javax.swing.JOptionPane;
+package Esercitazione2;
 
 /**
  *
  * @author Matteo Giordano <ilmalteo at gmail.com>
  */
-public class NPrint {
+class SleepingThread implements Runnable {
 
-    /**
-     * @param args the command line arguments
-     */
-    public static void main(String[] args) {
-        int K = Integer.parseInt(JOptionPane.showInputDialog("Numero di thread:"));
-        int N = Integer.parseInt(JOptionPane.showInputDialog("Numero di numeri:"));
+    long tempo0;
 
-        for (int i = 1; i <= K; i++) {
-            NumberPrinter np = new NumberPrinter(N);
-            Thread t = new Thread(np, "T" + i);
-            t.start();
+    public void run() {
+        try {
+            System.out.println("In sleep() per 10 secondi...");
+            tempo0 = System.currentTimeMillis();
+            Thread.sleep(10000);
+        } catch (InterruptedException x) {
+            System.out.print("Sono trascorsi ");
+            System.out.print(System.currentTimeMillis() - tempo0);
+            System.out.println(" millisecondi.");
+            return;
         }
     }
 }

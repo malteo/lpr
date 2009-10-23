@@ -10,7 +10,7 @@
  * General Public License for more details:
  * http://www.gnu.org/licenses/gpl.txt
  */
-package Esercizio4;
+package Esercitazione2;
 
 import java.util.concurrent.Callable;
 
@@ -18,11 +18,11 @@ import java.util.concurrent.Callable;
  *
  * @author Matteo Giordano <ilmalteo at gmail.com>
  */
-class CalculatingThread implements Callable {
+class CalculatingCallable implements Callable {
 
     double accuracy;
 
-    CalculatingThread(double accuracy) {
+    CalculatingCallable(double accuracy) {
         this.accuracy = accuracy;
     }
 

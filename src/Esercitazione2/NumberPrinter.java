@@ -10,7 +10,7 @@
  * General Public License for more details:
  * http://www.gnu.org/licenses/gpl.txt
  */
-package Esercizio1;
+package Esercitazione2;
 
 import java.util.Random;
 import java.util.logging.Level;

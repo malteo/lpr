@@ -10,26 +10,33 @@
  * General Public License for more details:
  * http://www.gnu.org/licenses/gpl.txt
  */
-package Esercizio2;
+package Esercitazione2;
 
 /**
  *
  * @author Matteo Giordano <ilmalteo at gmail.com>
  */
-public class ThreadInterrupt {
+public class Pi {
 
     /**
      * @param args the command line arguments
      */
     public static void main(String[] args) {
-        SleepingThread si = new SleepingThread();
-        Thread t = new Thread(si);
+        if (args.length < 2) {
+            System.out.println("Usage: java Pi accuracy time");
+            return;
+        }
+        double accuracy = Double.parseDouble(args[0]);
+        int time = Integer.parseInt(args[1]);
+
+        CalculatingThread pi = new CalculatingThread(accuracy);
+        Thread t = new Thread(pi);
+        System.out.println("Sto calcolando pi...");
         t.start();
         try {
-            Thread.sleep(5000);
+            Thread.sleep(time);
         } catch (InterruptedException x) {
         }
-        System.out.println("Interrompo l'altro thread.");
         t.interrupt();
     }
 }

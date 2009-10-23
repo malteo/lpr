@@ -10,7 +10,7 @@
  * General Public License for more details:
  * http://www.gnu.org/licenses/gpl.txt
  */
-package Esercizio4;
+package Esercitazione2;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
@@ -21,7 +21,7 @@ import java.util.logging.Logger;
  *
  * @author Matteo Giordano <ilmalteo at gmail.com>
  */
-public class Pi {
+public class PiCallable {
 
     /**
      * @param args the command line arguments
@@ -36,7 +36,7 @@ public class Pi {
             time = Integer.parseInt(args[1]);
         }
 
-        CalculatingThread ct = new CalculatingThread(accuracy);
+        CalculatingCallable ct = new CalculatingCallable(accuracy);
         FutureTask ft = new FutureTask(ct);
         Thread t = new Thread(ft);
         System.out.println("Sto calcolando pi...");
@@ -49,9 +49,9 @@ public class Pi {
         try {
             System.out.println("Approssimazione di pi = " + ft.get());
         } catch (InterruptedException ex) {
-            Logger.getLogger(Pi.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(PiCallable.class.getName()).log(Level.SEVERE, null, ex);
         } catch (ExecutionException ex) {
-            Logger.getLogger(Pi.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(PiCallable.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 }

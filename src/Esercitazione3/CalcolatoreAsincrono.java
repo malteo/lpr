@@ -18,11 +18,12 @@ import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+
 /**
  *
  * @author Matteo Giordano <ilmalteo at gmail.com>
  */
-public class Esercizio1 {
+public class CalcolatoreAsincrono {
 
     // un "trucco" per poter fare uno switch su String
     public enum Command {
@@ -79,7 +80,6 @@ public class Esercizio1 {
         }
     }
 }
-
 class PiTask implements Runnable {
 
     double accuracy;
