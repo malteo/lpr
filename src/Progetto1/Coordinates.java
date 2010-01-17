@@ -18,6 +18,32 @@ package Progetto1;
  */
 class Coordinates {
 
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        final Coordinates other = (Coordinates) obj;
+        if (this.x != other.x) {
+            return false;
+        }
+        if (this.y != other.y) {
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 3;
+        hash = 41 * hash + this.x;
+        hash = 41 * hash + this.y;
+        return hash;
+    }
+
     private final short x;
     private final short y;
 
@@ -36,9 +62,5 @@ class Coordinates {
 
     String getXY() {
         return "(" + ")";
-    }
-
-    public boolean equals(Coordinates coord) {
-        return ((this.x == coord.x) && (this.y == coord.y));
     }
 }

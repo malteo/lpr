@@ -21,6 +21,8 @@ import java.net.MulticastSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 import java.util.logging.Level;
@@ -39,7 +41,6 @@ public class Client {
     private OutputStream out;
     private InputStream in;
     private String state;
-    //FIXME: http://java.sun.com/j2se/1.5.0/docs/api/java/util/Collections.html#synchronizedList%28java.util.List%29
     List<Coordinates> targets;
     short x;
     short y;
@@ -63,7 +64,7 @@ public class Client {
 
         while (true) {
             try {
-                Thread.sleep(110L);
+                Thread.sleep(130L);
             } catch (InterruptedException ex) {
                 Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
             }
@@ -80,23 +81,38 @@ public class Client {
                     send(5);
                     Msg m = recv();
                     bb = ByteBuffer.wrap(m.data);
-                    this.targets = new ArrayList<Coordinates>();
-                    while (bb.hasRemaining()) {
-//                        short[] xy = new short[2];
-//                        xy[0] = bb.getShort();
-//                        xy[1] = bb.getShort();
-                        Coordinates xy = new Coordinates(bb.getShort(), bb.getShort());
-                        this.targets.add(xy);
+                    this.targets = Collections.synchronizedList(new ArrayList<Coordinates>());
+
+                    synchronized (this.targets) {
+                        while (bb.hasRemaining()) {
+                            Coordinates xy = new Coordinates(bb.getShort(), bb.getShort());
+                            this.targets.add(xy);
+                        }
                     }
-                    this.state = "moving";
+
                     TargetReceiver tr = new TargetReceiver(this.targets);
                     Thread t = new Thread(tr);
                     t.start();
+
+                    Thread.sleep(100L);
+                    
+                    send(4);
+                    // FIXME: buffer underflow?
+                    Msg whereami = recv();
+                    bb = ByteBuffer.wrap(whereami.data);
+                    this.x = bb.getShort();
+                    this.y = bb.getShort();
+
+                    this.state = "moving";
                     break;
                 case moving:
-                    coordinate();
-                    send(2, 4, this.x, this.y);
-                    this.state = "seeking";
+                    if (this.targets.size() > 0) {
+                        findNearest();
+                        send(2, 4, this.x, this.y);
+                        this.state = "seeking";
+                    } else {
+                        this.state = "pinging";
+                    }
                     break;
                 case seeking:
                     send(4);
@@ -107,21 +123,9 @@ public class Client {
                     }
                     break;
                 case grabbing:
-                    System.err.println("Raccolgo a (" + this.x + "," + this.y + ")");
                     send(3);
-                    //InetAddress ia = InetAddress.getByName("239.125.63.56");
-                    InetAddress ia = InetAddress.getByName("226.0.0.0");
-                    byte[] msg = new byte[7];
-                    ByteBuffer bbm = ByteBuffer.wrap(msg);
-                    msg[0] = 70;
-                    bbm.putShort(1, (short) 2);
-                    bbm.putShort(3, this.x);
-                    bbm.putShort(5, this.y);
-                    //int port = 31337;
-                    int port = 4001;
-                    DatagramPacket dp = new DatagramPacket(msg, msg.length, ia, port);
-                    MulticastSocket ms = new MulticastSocket(port);
-                    ms.send(dp);
+                    Msg msg = recv();
+                    //TODO: cosa ritorna qui?
                     this.state = "moving";
                     break;
                 case pinging:
@@ -131,7 +135,8 @@ public class Client {
                     if (pong.command == 64) {
                         System.out.println("PONG!");
                     }
-                    Thread.sleep(800L);
+                    this.state = "moving";
+                    break;
                 default:
                     System.out.println("FFFUUUUU-");
                     break;
@@ -142,7 +147,7 @@ public class Client {
     private void send(int command, String TEAM) throws IOException {
         byte[] team = TEAM.getBytes();
         byte[] b = new byte[3 + team.length];
-        //FIXME: usare ByteBuffer
+        //TODO: usare ByteBuffer (ma anche no)
         b[0] = (byte) command;
         b[1] = (byte) ((team.length >> 8) & 0xFF);
         b[2] = (byte) (team.length & 0xFF);
@@ -174,7 +179,7 @@ public class Client {
 
     private Msg recv() throws IOException {
         byte[] b = new byte[3];
-        // TODO: antani
+        // TODO: ehm
         int r = this.in.read(b);
         if (r == -1) {
             throw new IOException("connection closed");
@@ -196,15 +201,41 @@ public class Client {
         return m;
     }
 
-    // TODO: togliere il private coord e creare un metodo move()
-    private void coordinate() {
-        Random r = new Random();
+    //TODO: questo è da spostare in un thread a parte con i FUTURES!
+    private void findNearest() throws IOException {
+        int index = 0;
 
-        //System.err.println("#TARGETS: " + this.targets.size());
-        Coordinates xy = this.targets.remove(r.nextInt(this.targets.size()));
+        if (this.targets.size() > 1) {
+            Iterator i = this.targets.iterator();
+            double nearestDistance = Double.MAX_VALUE;
 
-        this.x = xy.getX();
-        this.y = xy.getY();
+            while (i.hasNext()) {
+                Coordinates pq = (Coordinates) i.next();
+                double distance = Math.pow((this.x - pq.getX()), 2) + Math.pow((this.y - pq.getY()), 2);
+                if (distance < nearestDistance) {
+                    nearestDistance = distance;
+                    index = this.targets.indexOf(pq);
+                }
+            }
+        }
+
+        synchronized (this.targets) {
+            Coordinates xy = this.targets.remove(index);
+            this.x = xy.getX();
+            this.y = xy.getY();
+        }
+
+        InetAddress ia = InetAddress.getByName("226.0.0.0");
+        byte[] msg = new byte[7];
+        ByteBuffer bbm = ByteBuffer.wrap(msg);
+        msg[0] = 70;
+        bbm.putShort(1, (short) 2);
+        bbm.putShort(3, this.x);
+        bbm.putShort(5, this.y);
+        int port = 4001;
+        DatagramPacket dp = new DatagramPacket(msg, msg.length, ia, port);
+        MulticastSocket ms = new MulticastSocket(port);
+        ms.send(dp);
     }
 
     public enum State {

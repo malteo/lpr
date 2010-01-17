@@ -18,7 +18,7 @@ import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -32,7 +32,7 @@ public class TargetReceiver implements Runnable {
     private final List<Coordinates> targets;
 
     TargetReceiver(List<Coordinates> targets) {
-        this.targets = targets;
+        this.targets = Collections.synchronizedList(targets);
     }
 
     public void run() {
@@ -46,30 +46,19 @@ public class TargetReceiver implements Runnable {
             while (true) {
                 DatagramPacket dp = new DatagramPacket(msg, msg.length);
                 ms.receive(dp);
-//                short[] xy = new short[2];
-//                xy[0] = bb.getShort(3);
-//                xy[1] = bb.getShort(5);
                 Coordinates xy = new Coordinates(bb.getShort(3), bb.getShort(5));
 
-                switch (msg[0]) {
-                    case 67:
-                        //System.err.println("#TARGETS: " + this.targets.size());
-                        this.targets.add(xy);
-                        //System.err.println("+TARGETS: " + this.targets.size() + " (" + xy[0] + "," + xy[1] + ")");
-                        break;
-                    case 70:
-                        System.err.println("#TARGETS: " + this.targets.size());
-                        // FIXME: usa il for
-                        while (this.targets.iterator().hasNext()) {
-                            Coordinates target = this.targets.iterator().next();
-                            if (target.equals(xy))
-                                System.err.println("si può fare!");
-                        }
-                        this.targets.remove(xy);
-                        System.err.println("-TARGETS: " + this.targets.size() + " (" + xy.getX() + "," + xy.getY() + ")");
-                        break;
-                    default:
-                        System.err.println("FFFFFUUUUUUU-");
+                synchronized (this.targets) {
+                    switch (msg[0]) {
+                        case 67:
+                            this.targets.add(xy);
+                            break;
+                        case 70:
+                            this.targets.remove(xy);
+                            break;
+                        default:
+                            System.err.println("FFFFFUUUUUUU-");
+                    }
                 }
             }
         } catch (UnknownHostException ex) {
