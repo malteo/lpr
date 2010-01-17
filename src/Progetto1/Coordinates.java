@@ -12,6 +12,8 @@
  */
 package Progetto1;
 
+import java.nio.ByteBuffer;
+
 /**
  *
  * @author Matteo Giordano <ilmalteo at gmail.com>
@@ -50,6 +52,11 @@ class Coordinates {
     Coordinates(short x, short y) {
         this.x = x;
         this.y = y;
+    }
+
+    Coordinates(ByteBuffer bb) {
+        this.x = bb.getShort();
+        this.y = bb.getShort();
     }
 
     short getX() {

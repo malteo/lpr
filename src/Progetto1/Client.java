@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -42,8 +41,8 @@ public class Client {
     private InputStream in;
     private String state;
     List<Coordinates> targets;
-    short x;
-    short y;
+    private Coordinates target;
+    //private Coordinates nextTarget;
 
     public Client(String host, int port) throws IOException {
         this.socket = new Socket(InetAddress.getByName(host), port);
@@ -100,15 +99,16 @@ public class Client {
                     // FIXME: buffer underflow?
                     Msg whereami = recv();
                     bb = ByteBuffer.wrap(whereami.data);
-                    this.x = bb.getShort();
-                    this.y = bb.getShort();
+
+                    // RESPAWN!
+                    target = new Coordinates(bb);
 
                     this.state = "moving";
                     break;
                 case moving:
                     if (this.targets.size() > 0) {
                         findNearest();
-                        send(2, 4, this.x, this.y);
+                        send(2, target);
                         this.state = "seeking";
                     } else {
                         this.state = "pinging";
@@ -118,7 +118,8 @@ public class Client {
                     send(4);
                     Msg loc = recv();
                     bb = ByteBuffer.wrap(loc.data);
-                    if ((bb.getShort() == this.x) && (bb.getShort() == this.y)) {
+                    Coordinates pq = new Coordinates(bb);
+                    if (pq.equals(target)) {
                         this.state = "grabbing";
                     }
                     break;
@@ -167,13 +168,14 @@ public class Client {
         this.out.write(b);
     }
 
-    private void send(int command, int len, short x, short y) throws IOException {
+    // invia il MOVE
+    private void send(int command, Coordinates target) throws IOException {
         byte[] b = new byte[7];
         ByteBuffer bb = ByteBuffer.wrap(b);
         b[0] = (byte) command;
-        bb.putShort(1, (short) len);
-        bb.putShort(3, x);
-        bb.putShort(5, y);
+        bb.putShort(1, (short) 4);
+        bb.putShort(3, target.getX());
+        bb.putShort(5, target.getY());
         this.out.write(b);
     }
 
@@ -197,7 +199,7 @@ public class Client {
             throw new IOException("bad data length");
         }
         Msg m = new Msg(b[0], data);
-
+        // TODO: facciamo tornare un ByteBuffer?
         return m;
     }
 
@@ -211,7 +213,7 @@ public class Client {
 
             while (i.hasNext()) {
                 Coordinates pq = (Coordinates) i.next();
-                double distance = Math.pow((this.x - pq.getX()), 2) + Math.pow((this.y - pq.getY()), 2);
+                double distance = Math.pow((target.getX() - pq.getX()), 2) + Math.pow((target.getY() - pq.getY()), 2);
                 if (distance < nearestDistance) {
                     nearestDistance = distance;
                     index = this.targets.indexOf(pq);
@@ -220,9 +222,7 @@ public class Client {
         }
 
         synchronized (this.targets) {
-            Coordinates xy = this.targets.remove(index);
-            this.x = xy.getX();
-            this.y = xy.getY();
+            this.target = this.targets.remove(index);
         }
 
         InetAddress ia = InetAddress.getByName("226.0.0.0");
@@ -230,8 +230,8 @@ public class Client {
         ByteBuffer bbm = ByteBuffer.wrap(msg);
         msg[0] = 70;
         bbm.putShort(1, (short) 2);
-        bbm.putShort(3, this.x);
-        bbm.putShort(5, this.y);
+        bbm.putShort(3, target.getX());
+        bbm.putShort(5, target.getY());
         int port = 4001;
         DatagramPacket dp = new DatagramPacket(msg, msg.length, ia, port);
         MulticastSocket ms = new MulticastSocket(port);
