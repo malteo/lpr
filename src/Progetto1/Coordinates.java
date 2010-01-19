@@ -66,8 +66,4 @@ class Coordinates {
     short getY() {
         return y;
     }
-
-    String getXY() {
-        return "(" + ")";
-    }
 }

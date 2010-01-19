@@ -33,58 +33,62 @@ import java.util.logging.Logger;
  */
 public class Client {
 
+    // TODO: usare la linea di comando!
     private static final String SERVER = "localhost";
     private static final int PORT = 4000;
-    private static final String TEAM = "A-Team";
+    private static final String TEAM = "B-Team";
+
     private Socket socket;
     private OutputStream out;
     private InputStream in;
     private String state;
-    List<Coordinates> targets;
+
     private Coordinates target;
-    //private Coordinates nextTarget;
+    // PENDING: final o no?
+    List<Coordinates> targets;
+
+    private boolean possible;
 
     public Client(String host, int port) throws IOException {
         this.socket = new Socket(InetAddress.getByName(host), port);
         this.out = this.socket.getOutputStream();
         this.in = this.socket.getInputStream();
-
         this.state = "registering";
+        this.possible = true;
     }
 
-    public static void main(String[] args) throws IOException, InterruptedException {
+    public static void main(String[] args)throws IOException, InterruptedException {
         Client client = new Client(SERVER, PORT);
         client.go(TEAM);
     }
 
     private void go(String TEAM) throws IOException, InterruptedException {
-
-        ByteBuffer bb;
-
-        while (true) {
+        while (possible) {
             try {
+                // TODO: trovare il valore più basso della sleep()
                 Thread.sleep(130L);
             } catch (InterruptedException ex) {
                 Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
             }
-
             switch (State.valueOf(this.state)) {
                 case registering:
                     send(7, TEAM);
                     Msg id = recv();
-                    bb = ByteBuffer.wrap(id.data);
-                    System.out.println("YOURID: " + bb.getShort());
-                    this.state = "looking";
+                    if (id.data.getShort() == -1) {
+                        this.state = "fucked";
+                    } else {
+                        this.state = "peeking";
+                    }
                     break;
-                case looking:
+                case peeking:
                     send(5);
                     Msg m = recv();
-                    bb = ByteBuffer.wrap(m.data);
-                    this.targets = Collections.synchronizedList(new ArrayList<Coordinates>());
 
+                    // inserisco tutti i TARGET nella mia List
+                    this.targets = Collections.synchronizedList(new ArrayList<Coordinates>());
                     synchronized (this.targets) {
-                        while (bb.hasRemaining()) {
-                            Coordinates xy = new Coordinates(bb.getShort(), bb.getShort());
+                        while (m.data.hasRemaining()) {
+                            Coordinates xy = new Coordinates(m.data.getShort(), m.data.getShort());
                             this.targets.add(xy);
                         }
                     }
@@ -94,15 +98,9 @@ public class Client {
                     t.start();
 
                     Thread.sleep(100L);
-                    
                     send(4);
-                    // FIXME: buffer underflow?
                     Msg whereami = recv();
-                    bb = ByteBuffer.wrap(whereami.data);
-
-                    // RESPAWN!
-                    target = new Coordinates(bb);
-
+                    target = new Coordinates(whereami.data);
                     this.state = "moving";
                     break;
                 case moving:
@@ -117,8 +115,7 @@ public class Client {
                 case seeking:
                     send(4);
                     Msg loc = recv();
-                    bb = ByteBuffer.wrap(loc.data);
-                    Coordinates pq = new Coordinates(bb);
+                    Coordinates pq = new Coordinates(loc.data);
                     if (pq.equals(target)) {
                         this.state = "grabbing";
                     }
@@ -126,7 +123,7 @@ public class Client {
                 case grabbing:
                     send(3);
                     Msg msg = recv();
-                    //TODO: cosa ritorna qui?
+                    //System.err.println(msg.data.getShort());
                     this.state = "moving";
                     break;
                 case pinging:
@@ -136,19 +133,23 @@ public class Client {
                     if (pong.command == 64) {
                         System.out.println("PONG!");
                     }
+                    // FIXME: failed comm (java.net.SocketTimeoutException: Read timed out)
                     this.state = "moving";
                     break;
                 default:
-                    System.out.println("FFFUUUUU-");
+                    System.err.println("FFFUUUUU-");
+                    this.possible = false;
                     break;
             }
         }
     }
 
+    /**
+     * Invia il REGISTER
+     */
     private void send(int command, String TEAM) throws IOException {
         byte[] team = TEAM.getBytes();
         byte[] b = new byte[3 + team.length];
-        //TODO: usare ByteBuffer (ma anche no)
         b[0] = (byte) command;
         b[1] = (byte) ((team.length >> 8) & 0xFF);
         b[2] = (byte) (team.length & 0xFF);
@@ -162,13 +163,18 @@ public class Client {
         this.out.write(b);
     }
 
+    /**
+     * Invia un comando senza dati
+     */
     private void send(int command) throws IOException {
         byte[] b = new byte[3];
         b[0] = (byte) command;
         this.out.write(b);
     }
 
-    // invia il MOVE
+    /**
+     * Invia il MOVE
+     */
     private void send(int command, Coordinates target) throws IOException {
         byte[] b = new byte[7];
         ByteBuffer bb = ByteBuffer.wrap(b);
@@ -179,44 +185,38 @@ public class Client {
         this.out.write(b);
     }
 
+    /**
+     * Riceve un comando dal server.
+     *
+     * @return un Msg con comando e (opzionali) dati.
+     */
     private Msg recv() throws IOException {
-        byte[] b = new byte[3];
-        // TODO: ehm
-        int r = this.in.read(b);
-        if (r == -1) {
-            throw new IOException("connection closed");
-        }
-        if (r != 3) {
-            throw new IOException("bad command length");
-        }
-        byte[] len = new byte[2];
-        System.arraycopy(b, 1, len, 0, len.length);
-        ByteBuffer bb = ByteBuffer.wrap(len);
-        short n = bb.getShort();
+        byte[] command = new byte[1];
+        this.in.read(command);
+        byte[] length = new byte[2];
+        this.in.read(length);
+        short n = ByteBuffer.wrap(length).getShort();
         byte[] data = new byte[n];
-        r = this.in.read(data);
-        if (r != n) {
-            throw new IOException("bad data length");
-        }
-        Msg m = new Msg(b[0], data);
-        // TODO: facciamo tornare un ByteBuffer?
-        return m;
+        this.in.read(data);
+        
+        return new Msg(command[0], ByteBuffer.wrap(data));
     }
 
-    //TODO: questo è da spostare in un thread a parte con i FUTURES!
     private void findNearest() throws IOException {
         int index = 0;
 
         if (this.targets.size() > 1) {
-            Iterator i = this.targets.iterator();
-            double nearestDistance = Double.MAX_VALUE;
+            synchronized (this.targets) {
+                Iterator i = this.targets.iterator();
+                double nearestDistance = Double.MAX_VALUE;
 
-            while (i.hasNext()) {
-                Coordinates pq = (Coordinates) i.next();
-                double distance = Math.pow((target.getX() - pq.getX()), 2) + Math.pow((target.getY() - pq.getY()), 2);
-                if (distance < nearestDistance) {
-                    nearestDistance = distance;
-                    index = this.targets.indexOf(pq);
+                while (i.hasNext()) {
+                    Coordinates pq = (Coordinates) i.next();
+                    double distance = Math.pow((target.getX() - pq.getX()), 2) + Math.pow((target.getY() - pq.getY()), 2);
+                    if (distance < nearestDistance) {
+                        nearestDistance = distance;
+                        index = this.targets.indexOf(pq);
+                    }
                 }
             }
         }
@@ -239,31 +239,25 @@ public class Client {
     }
 
     public enum State {
-
-        registering, pinging, moving, grabbing, GETPOS, looking, LOAD, seeking;
+        registering,
+        pinging,
+        moving,
+        grabbing,
+        GETPOS,
+        peeking,
+        LOAD,
+        seeking,
+        fucked;
     }
 
     private class Msg {
 
-        public static final byte PING = 1;
-        public static final byte MOVE = 2;
-        public static final byte GRAB = 3;
-        public static final byte GETPOS = 4;
-        public static final byte LOOK = 5;
-        public static final byte LOAD = 6;
-        public static final byte REGISTER = 7;
-        public static final byte PONG = 64;
-        public static final byte LOC = 65;
-        public static final byte YOURLOAD = 66;
-        public static final byte FRUITS = 67;
-        public static final byte GRABRESULT = 68;
-        public static final byte YOURID = 69;
         public int command;
-        public byte[] data;
+        public ByteBuffer data;
 
-        public Msg(byte paramByte, byte[] paramArrayOfByte) {
-            this.command = paramByte;
-            this.data = paramArrayOfByte;
+        public Msg(byte command, ByteBuffer data) {
+            this.command = command;
+            this.data = data;
         }
     }
 }
