@@ -15,10 +15,12 @@ package Progetto1;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.ConnectException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,36 +35,62 @@ import java.util.logging.Logger;
  */
 public class Client {
 
-    // TODO: usare la linea di comando!
-    private static final String SERVER = "localhost";
-    private static final int PORT = 4000;
-    private static final String TEAM = "B-Team";
-
     private Socket socket;
     private OutputStream out;
     private InputStream in;
     private String state;
-
+    private boolean possible;
     private Coordinates target;
-    // PENDING: final o no?
+
     List<Coordinates> targets;
 
-    private boolean possible;
-
-    public Client(String host, int port) throws IOException {
-        this.socket = new Socket(InetAddress.getByName(host), port);
-        this.out = this.socket.getOutputStream();
-        this.in = this.socket.getInputStream();
-        this.state = "registering";
-        this.possible = true;
+    /**
+     *
+     * @param host
+     * @param port
+     */
+    public Client(InetAddress host, int port) {
+        try {
+            this.socket = new Socket(host, port);
+            this.out = this.socket.getOutputStream();
+            this.in = this.socket.getInputStream();
+            this.state = "registering";
+            this.possible = true;
+        } catch (ConnectException ex) {
+            System.err.println(ex);
+        } catch (IOException ex) {
+            Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
-    public static void main(String[] args)throws IOException, InterruptedException {
-        Client client = new Client(SERVER, PORT);
-        client.go(TEAM);
+    /**
+     *
+     * @param args
+     * @throws UnknownHostException
+     */
+    public static void main(String[] args) throws UnknownHostException {
+        InetAddress host = InetAddress.getLocalHost();
+        int portaTCP = 4000;
+        String squadra = "A-Team";
+        try {
+            squadra = args[0];
+            host = InetAddress.getByName(args[1]);
+            portaTCP = Integer.parseInt(args[2]);
+        } catch (NumberFormatException e) {
+            System.err.println("Numero di porta non valido, uso il default (" +
+                    portaTCP + ").");
+        } catch (ArrayIndexOutOfBoundsException e) {
+        } catch (UnknownHostException e) {
+            System.err.println("Nome host non valido, uso il default (" +
+                    host + ").");
+        }
+
+        Client client = new Client(host, portaTCP);
+        client.go(squadra);
+        //System.out.println(host + " " + portaTCP + " " + squadra);
     }
 
-    private void go(String TEAM) throws IOException, InterruptedException {
+    private void go(String squadra) {
         while (possible) {
             try {
                 // TODO: trovare il valore più basso della sleep()
@@ -72,7 +100,7 @@ public class Client {
             }
             switch (State.valueOf(this.state)) {
                 case registering:
-                    send(7, TEAM);
+                    send(7, squadra);
                     Msg id = recv();
                     if (id.data.getShort() == -1) {
                         this.state = "fucked";
@@ -96,8 +124,9 @@ public class Client {
                     TargetReceiver tr = new TargetReceiver(this.targets);
                     Thread t = new Thread(tr);
                     t.start();
-
-                    Thread.sleep(100L);
+                    this.state = "whereami";
+                    break;
+                case whereami:
                     send(4);
                     Msg whereami = recv();
                     target = new Coordinates(whereami.data);
@@ -105,7 +134,11 @@ public class Client {
                     break;
                 case moving:
                     if (this.targets.size() > 0) {
-                        findNearest();
+                        try {
+                            findNearest();
+                        } catch (IOException ex) {
+                            Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
+                        }
                         send(2, target);
                         this.state = "seeking";
                     } else {
@@ -133,7 +166,6 @@ public class Client {
                     if (pong.command == 64) {
                         System.out.println("PONG!");
                     }
-                    // FIXME: failed comm (java.net.SocketTimeoutException: Read timed out)
                     this.state = "moving";
                     break;
                 default:
@@ -145,10 +177,12 @@ public class Client {
     }
 
     /**
-     * Invia il REGISTER
+     * Invia il REGISTER.
+     * @param command Il comando di REGISTER.
+     * @param squadra Il nome della squadra.
      */
-    private void send(int command, String TEAM) throws IOException {
-        byte[] team = TEAM.getBytes();
+    private void send(int command, String squadra) {
+        byte[] team = squadra.getBytes();
         byte[] b = new byte[3 + team.length];
         b[0] = (byte) command;
         b[1] = (byte) ((team.length >> 8) & 0xFF);
@@ -159,30 +193,46 @@ public class Client {
             b[i] = team[j];
             j++;
         }
-
-        this.out.write(b);
+        try {
+            this.out.write(b);
+        } catch (IOException ex) {
+            Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     /**
-     * Invia un comando senza dati
+     * Invia un comando senza dati.
+     *
+     * @param command Il comando.
      */
-    private void send(int command) throws IOException {
+    private void send(int command) {
         byte[] b = new byte[3];
         b[0] = (byte) command;
-        this.out.write(b);
+        try {
+            this.out.write(b);
+        } catch (IOException ex) {
+            Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     /**
      * Invia il MOVE
+     *
+     * @param command Il comando di MOVE.
+     * @param target Le coordinate.
      */
-    private void send(int command, Coordinates target) throws IOException {
+    private void send(int command, Coordinates target) {
         byte[] b = new byte[7];
         ByteBuffer bb = ByteBuffer.wrap(b);
         b[0] = (byte) command;
         bb.putShort(1, (short) 4);
         bb.putShort(3, target.getX());
         bb.putShort(5, target.getY());
-        this.out.write(b);
+        try {
+            this.out.write(b);
+        } catch (IOException ex) {
+            Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     /**
@@ -190,16 +240,22 @@ public class Client {
      *
      * @return un Msg con comando e (opzionali) dati.
      */
-    private Msg recv() throws IOException {
-        byte[] command = new byte[1];
-        this.in.read(command);
-        byte[] length = new byte[2];
-        this.in.read(length);
-        short n = ByteBuffer.wrap(length).getShort();
-        byte[] data = new byte[n];
-        this.in.read(data);
-        
-        return new Msg(command[0], ByteBuffer.wrap(data));
+    private Msg recv() {
+        Msg msg = null;
+        try {
+            byte[] command = new byte[1];
+            this.in.read(command);
+            byte[] length = new byte[2];
+            this.in.read(length);
+            short n = ByteBuffer.wrap(length).getShort();
+            byte[] data = new byte[n];
+            this.in.read(data);
+            msg = new Msg(command[0], ByteBuffer.wrap(data));
+        } catch (IOException ex) {
+            Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
+        }
+
+        return msg;
     }
 
     private void findNearest() throws IOException {
@@ -238,14 +294,16 @@ public class Client {
         ms.send(dp);
     }
 
+    /**
+     * Gli stati del client.
+     */
     public enum State {
         registering,
         pinging,
         moving,
         grabbing,
-        GETPOS,
+        whereami,
         peeking,
-        LOAD,
         seeking,
         fucked;
     }
