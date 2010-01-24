@@ -12,13 +12,17 @@
  */
 package Progetto1;
 
+import java.io.Serializable;
 import java.nio.ByteBuffer;
 
 /**
  *
  * @author Matteo Giordano <ilmalteo at gmail.com>
  */
-class Coordinates {
+public class Coordinates implements Serializable {
+
+    private final short x;
+    private final short y;
 
     @Override
     public boolean equals(Object obj) {
@@ -46,9 +50,6 @@ class Coordinates {
         return hash;
     }
 
-    private final short x;
-    private final short y;
-
     Coordinates(short x, short y) {
         this.x = x;
         this.y = y;
@@ -59,11 +60,11 @@ class Coordinates {
         this.y = bb.getShort();
     }
 
-    short getX() {
+    public short getX() {
         return x;
     }
 
-    short getY() {
+    public short getY() {
         return y;
     }
 }
