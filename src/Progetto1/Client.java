@@ -43,6 +43,7 @@ public class Client {
     private Coordinates target;
 
     List<Coordinates> targets;
+    private int prevCommand;
 
     /**
      *
@@ -102,6 +103,7 @@ public class Client {
                 case registering:
                     send(7, squadra);
                     Msg id = recv();
+                    this.prevCommand = id.command;
                     if (id.data.getShort() == -1) {
                         this.state = "fucked";
                     } else {
@@ -111,7 +113,7 @@ public class Client {
                 case peeking:
                     send(5);
                     Msg m = recv();
-
+                    this.prevCommand = m.command;
                     // inserisco tutti i TARGET nella mia List
                     this.targets = Collections.synchronizedList(new ArrayList<Coordinates>());
                     synchronized (this.targets) {
@@ -129,6 +131,7 @@ public class Client {
                 case whereami:
                     send(4);
                     Msg whereami = recv();
+                    this.prevCommand = whereami.command;
                     target = new Coordinates(whereami.data);
                     this.state = "moving";
                     break;
@@ -148,6 +151,7 @@ public class Client {
                 case seeking:
                     send(4);
                     Msg loc = recv();
+                    this.prevCommand = loc.command;
                     Coordinates pq = new Coordinates(loc.data);
                     if (pq.equals(target)) {
                         this.state = "grabbing";
@@ -156,15 +160,16 @@ public class Client {
                 case grabbing:
                     send(3);
                     Msg msg = recv();
+                    this.prevCommand = msg.command;
                     //System.err.println(msg.data.getShort());
                     this.state = "moving";
                     break;
                 case pinging:
                     send(1);
-                    System.out.print("PING? ");
                     Msg pong = recv();
-                    if (pong.command == 64) {
-                        System.out.println("PONG!");
+                    if (pong.command != this.prevCommand) {
+                        this.prevCommand = pong.command;
+                        System.err.println("PING? PONG!");
                     }
                     this.state = "moving";
                     break;
@@ -178,6 +183,7 @@ public class Client {
 
     /**
      * Invia il REGISTER.
+     *
      * @param command Il comando di REGISTER.
      * @param squadra Il nome della squadra.
      */
@@ -308,6 +314,10 @@ public class Client {
         fucked;
     }
 
+    /**
+     * Il messaggio di risposta.
+     * Ha un byte per il comando e un ByteBuffer per i dati.
+     */
     private class Msg {
 
         public int command;
