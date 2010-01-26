@@ -19,6 +19,7 @@ import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.rmi.AccessException;
 import java.rmi.NotBoundException;
@@ -40,8 +41,6 @@ public class Client {
     private String state;
     private boolean possible;
     private Coordinates target;
-
-    private int prevCommand;
     private Targets stub;
 
     /**
@@ -114,7 +113,6 @@ public class Client {
                 case registering:
                     send(7, squadra);
                     Msg id = recv();
-                    this.prevCommand = id.command;
                     if (id.data.getShort() == -1) {
                         this.state = "fucked";
                     } else {
@@ -124,7 +122,6 @@ public class Client {
                 case peeking:
                     send(5);
                     Msg targetsMsg = recv();
-                    this.prevCommand = targetsMsg.command;
                     while (targetsMsg.data.hasRemaining()) {
                         Coordinates xy = new Coordinates(targetsMsg.data.getShort(), targetsMsg.data.getShort());
                         this.stub.add(xy);
@@ -134,43 +131,36 @@ public class Client {
                 case whereami:
                     send(4);
                     Msg whereami = recv();
-                    this.prevCommand = whereami.command;
                     this.target = new Coordinates(whereami.data);
                     this.state = "moving";
                     break;
                 case moving:
-                    // FIXME: race condition!
-                    if (this.stub.hasMoreTargets()) {
-                        this.target = stub.nearestTo(this.target);
-                        send(2, this.target);
-                        this.state = "seeking";
-                    } else {
-                        this.state = "pinging";
-                    }
+                    this.target = stub.nearestTo(this.target);
+                    send(2, this.target);
+                    this.state = "seeking";
                     break;
                 case seeking:
-                    send(4);
-                    Msg loc = recv();
-                    this.prevCommand = loc.command;
-                    Coordinates pq = new Coordinates(loc.data);
-                    if (pq.equals(this.target)) {
-                        this.state = "grabbing";
+                    try {
+                        send(4);
+                        Msg loc = recv();
+                        Coordinates pq = new Coordinates(loc.data);
+                        if (pq.equals(this.target)) {
+                            this.state = "grabbing";
+                        }
+                    } catch (BufferUnderflowException e) {
+                        // Probabilmente il server è uscito.
+                        this.state = "fucked";
                     }
                     break;
                 case grabbing:
                     send(3);
                     Msg msg = recv();
-                    this.prevCommand = msg.command;
                     //System.err.println(msg.data.getShort());
                     this.state = "moving";
                     break;
                 case pinging:
                     send(1);
                     Msg pong = recv();
-                    if (pong.command != this.prevCommand) {
-                        this.prevCommand = pong.command;
-                        System.err.println("PING? PONG!");
-                    }
                     this.state = "moving";
                     break;
                 default:
@@ -263,42 +253,6 @@ public class Client {
 
         return msg;
     }
-
-//    private void findNearest() throws IOException {
-//        int index = 0;
-//
-//        if (this.targets.size() > 1) {
-//            synchronized (this.targets) {
-//                Iterator i = this.targets.iterator();
-//                double nearestDistance = Double.MAX_VALUE;
-//
-//                while (i.hasNext()) {
-//                    Coordinates pq = (Coordinates) i.next();
-//                    double distance = Math.pow((target.getX() - pq.getX()), 2) + Math.pow((target.getY() - pq.getY()), 2);
-//                    if (distance < nearestDistance) {
-//                        nearestDistance = distance;
-//                        index = this.targets.indexOf(pq);
-//                    }
-//                }
-//            }
-//        }
-//
-//        synchronized (this.targets) {
-//            this.target = this.targets.remove(index);
-//        }
-//
-//        InetAddress ia = InetAddress.getByName("226.0.0.0");
-//        byte[] msg = new byte[7];
-//        ByteBuffer bbm = ByteBuffer.wrap(msg);
-//        msg[0] = 70;
-//        bbm.putShort(1, (short) 2);
-//        bbm.putShort(3, target.getX());
-//        bbm.putShort(5, target.getY());
-//        int port = 4001;
-//        DatagramPacket dp = new DatagramPacket(msg, msg.length, ia, port);
-//        MulticastSocket ms = new MulticastSocket(port);
-//        ms.send(dp);
-//    }
 
     /**
      * Gli stati del client.

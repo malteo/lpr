@@ -10,7 +10,6 @@
  * General Public License for more details:
  * http://www.gnu.org/licenses/gpl.txt
  */
-
 package Progetto1;
 
 import java.io.IOException;
@@ -37,13 +36,12 @@ public class TargetsServer implements Targets {
 
     private ArrayList<Coordinates> targets = new ArrayList<Coordinates>();
 
-    public synchronized boolean hasMoreTargets() throws RemoteException {
-        return !this.targets.isEmpty();
-    }
-    
     public synchronized Coordinates nearestTo(Coordinates target) throws RemoteException {
         int index = 0;
 
+        if (this.targets.isEmpty()) {
+            return target;
+        }
         if (this.targets.size() > 1) {
             Iterator i = this.targets.iterator();
             double nearestDistance = Double.MAX_VALUE;
@@ -92,7 +90,7 @@ public class TargetsServer implements Targets {
     /**
      * @param args the command line arguments
      */
-    public static void main(String[] args){
+    public static void main(String[] args) {
         try {
             TargetsServer obj = new TargetsServer();
             Targets stub = (Targets) UnicastRemoteObject.exportObject(obj, 0);
@@ -107,6 +105,4 @@ public class TargetsServer implements Targets {
             Logger.getLogger(TargetsServer.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
-
-
 }

@@ -10,7 +10,6 @@
  * General Public License for more details:
  * http://www.gnu.org/licenses/gpl.txt
  */
-
 package Progetto1;
 
 import java.rmi.Remote;
@@ -22,7 +21,21 @@ import java.rmi.RemoteException;
  */
 public interface Targets extends Remote {
 
-    public boolean hasMoreTargets() throws RemoteException;
+    /**
+     * Ritorna le coordinate più vicine a dove si trova il client.
+     * Se non ci sono più obiettivi, ritorna il punto stesso.
+     *
+     * @param target
+     * @return
+     * @throws RemoteException
+     */
     public Coordinates nearestTo(Coordinates target) throws RemoteException;
+
+    /**
+     * Aggiunge un punto alla lista dei targets.
+     * 
+     * @param target
+     * @throws RemoteException
+     */
     public void add(Coordinates target) throws RemoteException;
 }

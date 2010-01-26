@@ -13,7 +13,6 @@
 
 package Progetto1;
 
-import java.io.Serializable;
 import java.nio.ByteBuffer;
 
 /**
@@ -22,7 +21,7 @@ import java.nio.ByteBuffer;
  * 
  * @author Matteo Giordano <ilmalteo at gmail.com>
  */
-public class Msg implements Serializable {
+public class Msg {
 
     public int command;
     public ByteBuffer data;
