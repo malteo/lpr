@@ -16,6 +16,9 @@ import java.io.Serializable;
 import java.nio.ByteBuffer;
 
 /**
+ * Questo oggetto rappresenta un punto (x,y) del "mondo".
+ *
+ * <p>Implementa Serializable perché viene comunicato al TargetsServer.
  *
  * @author Matteo Giordano <ilmalteo at gmail.com>
  */
@@ -50,20 +53,38 @@ public class Coordinates implements Serializable {
         return hash;
     }
 
-    Coordinates(short x, short y) {
+    /**
+     * Crea un punto a partire dalle coordinate x e y espresse numericamente.
+     *
+     * @param x Ascisse
+     * @param y Ordinate
+     */
+    public Coordinates(short x, short y) {
         this.x = x;
         this.y = y;
     }
 
-    Coordinates(ByteBuffer bb) {
+    /**
+     * Crea un punto a partire da un ByteBuffer che contiene le coordinate.
+     *
+     * @param x Ascisse
+     * @param y Ordinate
+     */
+    public Coordinates(ByteBuffer bb) {
         this.x = bb.getShort();
         this.y = bb.getShort();
     }
 
+    /**
+     * @return Il valore delle ascisse del punto.
+     */
     public short getX() {
         return x;
     }
 
+    /**
+     * @return Il valore delle ordinate del punto.
+     */
     public short getY() {
         return y;
     }

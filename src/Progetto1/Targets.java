@@ -22,17 +22,17 @@ import java.rmi.RemoteException;
 public interface Targets extends Remote {
 
     /**
-     * Ritorna le coordinate più vicine a dove si trova il client.
-     * Se non ci sono più obiettivi, ritorna il punto stesso.
+     * Ritorna il TARGET più vicino ad un punto specifico.
+     * <p>Se la lista dei TARGET conosciuti è vuota, ritorna il punto stesso.
      *
-     * @param target
-     * @return
+     * @param point
+     * @return Coordinates
      * @throws RemoteException
      */
-    public Coordinates nearestTo(Coordinates target) throws RemoteException;
+    public Coordinates nearestTo(Coordinates point) throws RemoteException;
 
     /**
-     * Aggiunge un punto alla lista dei targets.
+     * Aggiunge un punto alla lista dei TARGET.
      * 
      * @param target
      * @throws RemoteException

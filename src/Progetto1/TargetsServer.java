@@ -25,6 +25,7 @@ import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.concurrent.CountDownLatch;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -32,15 +33,20 @@ import java.util.logging.Logger;
  * TODO: riorganizzare il main e il costruttore.
  * @author Matteo Giordano <ilmalteo at gmail.com>
  */
-public class TargetsServer implements Targets {
+public class TargetsServer implements Runnable, Targets {
 
     private ArrayList<Coordinates> targets = new ArrayList<Coordinates>();
+    private final CountDownLatch latch;
 
-    public synchronized Coordinates nearestTo(Coordinates target) throws RemoteException {
+    TargetsServer(CountDownLatch l) {
+        this.latch = l;
+    }
+
+    public synchronized Coordinates nearestTo(Coordinates point) throws RemoteException {
         int index = 0;
 
         if (this.targets.isEmpty()) {
-            return target;
+            return point;
         }
         if (this.targets.size() > 1) {
             Iterator i = this.targets.iterator();
@@ -48,7 +54,7 @@ public class TargetsServer implements Targets {
 
             while (i.hasNext()) {
                 Coordinates pq = (Coordinates) i.next();
-                double distance = Math.pow((target.getX() - pq.getX()), 2) + Math.pow((target.getY() - pq.getY()), 2);
+                double distance = Math.pow((point.getX() - pq.getX()), 2) + Math.pow((point.getY() - pq.getY()), 2);
                 if (distance < nearestDistance) {
                     nearestDistance = distance;
                     index = this.targets.indexOf(pq);
@@ -87,18 +93,14 @@ public class TargetsServer implements Targets {
         }
     }
 
-    /**
-     * @param args the command line arguments
-     */
-    public static void main(String[] args) {
+    public void run() {
         try {
-            TargetsServer obj = new TargetsServer();
-            Targets stub = (Targets) UnicastRemoteObject.exportObject(obj, 0);
+            Targets stub = (Targets) UnicastRemoteObject.exportObject(this, 0);
             Registry registry = LocateRegistry.getRegistry();
             registry.rebind("Targets", stub);
             System.err.println("Targets Server ready.");
-
-            obj.fetchTargets();
+            latch.countDown();
+            this.fetchTargets();
         } catch (AccessException ex) {
             Logger.getLogger(TargetsServer.class.getName()).log(Level.SEVERE, null, ex);
         } catch (RemoteException ex) {

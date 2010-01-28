@@ -26,6 +26,7 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.util.concurrent.CountDownLatch;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -55,18 +56,6 @@ public class Client {
             this.in = this.socket.getInputStream();
             this.state = "registering";
             this.possible = true;
-
-            // TODO: spostarlo nel main e fare scegliere l'indirizzo
-            Registry registry = LocateRegistry.getRegistry("localhost");
-            this.stub = (Targets) registry.lookup("Targets");
-        } catch (NotBoundException ex) {
-            Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (AccessException ex) {
-            Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (RemoteException ex) {
-            Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (ConnectException ex) {
-            System.err.println(ex);
         } catch (IOException ex) {
             Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -75,18 +64,21 @@ public class Client {
     /**
      *
      * @param args
-     * @throws UnknownHostException
      * @throws RemoteException
+     * @throws UnknownHostException
+     * @throws InterruptedException 
      */
-    public static void main(String[] args) throws UnknownHostException, RemoteException {
+    public static void main(String[] args)
+            throws RemoteException, UnknownHostException, InterruptedException {
         InetAddress host = InetAddress.getLocalHost();
         int portaTCP = 4000;
         String squadra = "A-Team";
+        String tshost = "localhost";
         try {
             squadra = args[0];
             host = InetAddress.getByName(args[1]);
             portaTCP = Integer.parseInt(args[2]);
-
+            tshost = args[3];
         } catch (NumberFormatException e) {
             System.err.println("Numero di porta non valido, uso il default (" +
                     portaTCP + ").");
@@ -97,27 +89,42 @@ public class Client {
         }
 
         Client client = new Client(host, portaTCP);
-        client.go(squadra);
+        client.go(squadra, tshost);
         //System.out.println(host + " " + portaTCP + " " + squadra);
     }
 
-    private void go(String squadra) throws RemoteException {
+    private void go(String squadra, String tshost)
+            throws RemoteException, InterruptedException {
         while (possible) {
-            try {
-                // TODO: trovare il valore più basso della sleep()
-                Thread.sleep(130L);
-            } catch (InterruptedException ex) {
-                Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
-            }
+            Thread.sleep(130L);
+
             switch (State.valueOf(this.state)) {
                 case registering:
                     send(7, squadra);
                     Msg id = recv();
-                    if (id.data.getShort() == -1) {
-                        this.state = "fucked";
-                    } else {
-                        this.state = "peeking";
+                    CountDownLatch l = null;
+                    switch (id.data.getShort()) {
+                        case -1:
+                            this.state = "fucked";
+                            break;
+                        case 0:
+                            l = new CountDownLatch(1);
+                            Thread ts = new Thread(new TargetsServer(l));
+                            ts.start();
+                            break;
+                        default:
+                            l = new CountDownLatch(0);
                     }
+                    l.await();
+                    Registry registry = LocateRegistry.getRegistry(tshost);
+                    try {
+                        this.stub = (Targets) registry.lookup("Targets");
+                    } catch (NotBoundException ex) {
+                        Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
+                    } catch (AccessException ex) {
+                        Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                    this.state = "peeking";
                     break;
                 case peeking:
                     send(5);
@@ -252,6 +259,27 @@ public class Client {
         }
 
         return msg;
+    }
+
+    /**
+     * Il messaggio di risposta dal server al client.
+     *
+     */
+    private class Msg {
+
+        public int command;
+        public ByteBuffer data;
+
+        /**
+         * Crea il messaggio ricevuto dal server.
+         *
+         * @param command Il byte che identifica il comando inviato.
+         * @param data Un ByteBuffer che contiene i dati.
+         */
+        public Msg(byte command, ByteBuffer data) {
+            this.command = command;
+            this.data = data;
+        }
     }
 
     /**
