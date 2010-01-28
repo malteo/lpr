@@ -67,8 +67,7 @@ public class Coordinates implements Serializable {
     /**
      * Crea un punto a partire da un ByteBuffer che contiene le coordinate.
      *
-     * @param x Ascisse
-     * @param y Ordinate
+     * @param bb Il ByteBuffer che contiene le coordinate.
      */
     public Coordinates(ByteBuffer bb) {
         this.x = bb.getShort();
@@ -76,6 +75,8 @@ public class Coordinates implements Serializable {
     }
 
     /**
+     * X getter
+     *
      * @return Il valore delle ascisse del punto.
      */
     public short getX() {
@@ -83,6 +84,8 @@ public class Coordinates implements Serializable {
     }
 
     /**
+     * Y getter
+     * 
      * @return Il valore delle ordinate del punto.
      */
     public short getY() {

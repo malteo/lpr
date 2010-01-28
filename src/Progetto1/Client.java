@@ -15,7 +15,6 @@ package Progetto1;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
@@ -64,16 +63,14 @@ public class Client {
     /**
      *
      * @param args
-     * @throws RemoteException
      * @throws UnknownHostException
-     * @throws InterruptedException 
      */
-    public static void main(String[] args)
-            throws RemoteException, UnknownHostException, InterruptedException {
+    public static void main(String[] args) throws UnknownHostException {
         InetAddress host = InetAddress.getLocalHost();
         int portaTCP = 4000;
         String squadra = "A-Team";
         String tshost = "localhost";
+        
         try {
             squadra = args[0];
             host = InetAddress.getByName(args[1]);
@@ -90,90 +87,92 @@ public class Client {
 
         Client client = new Client(host, portaTCP);
         client.go(squadra, tshost);
-        //System.out.println(host + " " + portaTCP + " " + squadra);
     }
 
-    private void go(String squadra, String tshost)
-            throws RemoteException, InterruptedException {
+    private void go(String squadra, String tshost) {
         while (possible) {
-            Thread.sleep(130L);
+            try {
+                // non facciamoci chiamare spammer.
+                Thread.sleep(125L);
 
-            switch (State.valueOf(this.state)) {
-                case registering:
-                    send(7, squadra);
-                    Msg id = recv();
-                    CountDownLatch l = null;
-                    switch (id.data.getShort()) {
-                        case -1:
-                            this.state = "fucked";
-                            break;
-                        case 0:
-                            l = new CountDownLatch(1);
-                            Thread ts = new Thread(new TargetsServer(l));
-                            ts.start();
-                            break;
-                        default:
-                            l = new CountDownLatch(0);
-                    }
-                    l.await();
-                    Registry registry = LocateRegistry.getRegistry(tshost);
-                    try {
-                        this.stub = (Targets) registry.lookup("Targets");
-                    } catch (NotBoundException ex) {
-                        Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
-                    } catch (AccessException ex) {
-                        Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
-                    }
-                    this.state = "peeking";
-                    break;
-                case peeking:
-                    send(5);
-                    Msg targetsMsg = recv();
-                    while (targetsMsg.data.hasRemaining()) {
-                        Coordinates xy = new Coordinates(targetsMsg.data.getShort(), targetsMsg.data.getShort());
-                        this.stub.add(xy);
-                    }
-                    this.state = "whereami";
-                    break;
-                case whereami:
-                    send(4);
-                    Msg whereami = recv();
-                    this.target = new Coordinates(whereami.data);
-                    this.state = "moving";
-                    break;
-                case moving:
-                    this.target = stub.nearestTo(this.target);
-                    send(2, this.target);
-                    this.state = "seeking";
-                    break;
-                case seeking:
-                    try {
+                // in che stato siamo? neat trick per switchare su Strings.
+                switch (State.valueOf(this.state)) {
+                    case registering:
+                        send(7, squadra);
+                        Msg id = recv();
+                        // TODO: usiamo un paio di if?
+                        switch (id.data.getShort()) {
+                            case -1:
+                                this.state = "fucked";
+                                break;
+                            case 0:
+                                CountDownLatch l = new CountDownLatch(1);
+                                Thread ts = new Thread(new TargetsServer(l));
+                                ts.start();
+                                l.await();
+                            default:
+                                Thread.sleep(250L);
+                                Registry registry;
+                                registry = LocateRegistry.getRegistry(tshost);
+                                this.stub = (Targets) registry.lookup("Targets");
+                                this.state = "peeking";
+                        }
+                        break;
+                    case peeking:
+                        send(5);
+                        Msg targetsMsg = recv();
+                        while (targetsMsg.data.hasRemaining()) {
+                            Coordinates xy =
+                                    new Coordinates(targetsMsg.data.getShort(),
+                                                    targetsMsg.data.getShort());
+                            this.stub.add(xy);
+                        }
+                        this.state = "whereami";
+                        break;
+                    case whereami:
+                        send(4);
+                        Msg whereami = recv();
+                        this.target = new Coordinates(whereami.data);
+                        this.state = "moving";
+                        break;
+                    case moving:
+                        this.target = stub.nearestTo(this.target);
+                        send(2, this.target);
+                        this.state = "seeking";
+                        break;
+                    case seeking:
                         send(4);
                         Msg loc = recv();
                         Coordinates pq = new Coordinates(loc.data);
                         if (pq.equals(this.target)) {
                             this.state = "grabbing";
                         }
-                    } catch (BufferUnderflowException e) {
-                        // Probabilmente il server è uscito.
-                        this.state = "fucked";
-                    }
-                    break;
-                case grabbing:
-                    send(3);
-                    Msg msg = recv();
-                    //System.err.println(msg.data.getShort());
-                    this.state = "moving";
-                    break;
-                case pinging:
-                    send(1);
-                    Msg pong = recv();
-                    this.state = "moving";
-                    break;
-                default:
-                    System.err.println("FFFUUUUU-");
-                    this.possible = false;
-                    break;
+                        break;
+                    case grabbing:
+                        send(3);
+                        Msg msg = recv();
+                        this.state = "moving";
+                        break;
+                    case pinging:
+                        send(1);
+                        Msg pong = recv();
+                        this.state = "moving";
+                        break;
+                    default:
+                        System.err.println("FFFUUUUU-");
+                        this.possible = false;
+                }
+            } catch (BufferUnderflowException e) {
+                // TODO: scrivere qualcosa di intelligente, probabilmente il server è uscito.
+                this.state = "fucked";
+            } catch (NotBoundException ex) {
+                Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (AccessException ex) {
+                Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (RemoteException ex) {
+                Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (InterruptedException ex) {
+                Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
     }
@@ -241,7 +240,7 @@ public class Client {
     /**
      * Riceve un comando dal server.
      *
-     * @return un Msg con comando e (opzionali) dati.
+     * @return il Msg di risposta.
      */
     private Msg recv() {
         Msg msg = null;
@@ -265,7 +264,7 @@ public class Client {
      * Il messaggio di risposta dal server al client.
      *
      */
-    private class Msg {
+    class Msg {
 
         public int command;
         public ByteBuffer data;
@@ -284,6 +283,8 @@ public class Client {
 
     /**
      * Gli stati del client.
+     *
+     * @see http://www.xefer.com/2006/12/switchonstring
      */
     public enum State {
         registering,
