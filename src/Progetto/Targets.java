@@ -10,8 +10,9 @@
  * General Public License for more details:
  * http://www.gnu.org/licenses/gpl.txt
  */
-package Progetto1;
+package Progetto;
 
+import java.nio.ByteBuffer;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 
@@ -34,8 +35,8 @@ public interface Targets extends Remote {
     /**
      * Aggiunge un punto alla lista dei TARGET.
      * 
-     * @param target
+     * @param targets
      * @throws RemoteException
      */
-    public void add(Coordinates target) throws RemoteException;
+    public void compare(ByteBuffer targets) throws RemoteException;
 }

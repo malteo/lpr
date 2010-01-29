@@ -10,7 +10,7 @@
  * General Public License for more details:
  * http://www.gnu.org/licenses/gpl.txt
  */
-package Progetto1;
+package Progetto;
 
 import java.io.Serializable;
 import java.nio.ByteBuffer;

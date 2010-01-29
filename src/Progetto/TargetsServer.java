@@ -10,7 +10,7 @@
  * General Public License for more details:
  * http://www.gnu.org/licenses/gpl.txt
  */
-package Progetto1;
+package Progetto;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -30,16 +30,23 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * TODO: riorganizzare il main e il costruttore.
+ * Si occupa di aggiornare la lista dei TARGETS e condividerla con i client.
+ *
  * @author Matteo Giordano <ilmalteo at gmail.com>
  */
 public class TargetsServer implements Runnable, Targets {
 
     private ArrayList<Coordinates> targets = new ArrayList<Coordinates>();
     private final CountDownLatch latch;
+    private final String mshost;
 
-    TargetsServer(CountDownLatch l) {
+    TargetsServer(CountDownLatch l, ByteBuffer data, String mshost) {
         this.latch = l;
+        while (data.hasRemaining()) {
+            Coordinates xy = new Coordinates(data.getShort(), data.getShort());
+            this.targets.add(xy);
+        }
+        this.mshost = mshost;
     }
 
     public synchronized Coordinates nearestTo(Coordinates point) throws RemoteException {
@@ -65,7 +72,24 @@ public class TargetsServer implements Runnable, Targets {
         return this.targets.remove(index);
     }
 
-    public synchronized void add(Coordinates target) throws RemoteException {
+    public synchronized void compare(ByteBuffer newTargetsBB) throws RemoteException {
+        ArrayList<Coordinates> newTargets = new ArrayList<Coordinates>();
+        while (newTargetsBB.hasRemaining()) {
+            Coordinates xy =
+                    new Coordinates(newTargetsBB.getShort(),
+                                    newTargetsBB.getShort());
+            newTargets.add(xy);
+        }
+        Iterator i = this.targets.iterator();
+        while (i.hasNext()) {
+            Coordinates pq = (Coordinates) i.next();
+            if (!newTargets.contains(pq)) {
+                this.targets.remove(pq);
+            }
+        }
+    }
+
+    public synchronized void add(Coordinates target) {
         if (!this.targets.contains(target)) {
             this.targets.add(target);
         }
@@ -73,7 +97,7 @@ public class TargetsServer implements Runnable, Targets {
 
     private void fetchTargets() {
         try {
-            InetAddress ia = InetAddress.getByName("226.0.0.0");
+            InetAddress ia = InetAddress.getByName(mshost);
             MulticastSocket ms = new MulticastSocket(4001);
             ms.joinGroup(ia);
             byte[] msg = new byte[7];

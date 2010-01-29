@@ -10,7 +10,7 @@
  * General Public License for more details:
  * http://www.gnu.org/licenses/gpl.txt
  */
-package Progetto1;
+package Progetto;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -69,13 +69,15 @@ public class Client {
         InetAddress host = InetAddress.getLocalHost();
         int portaTCP = 4000;
         String squadra = "A-Team";
-        String tshost = "localhost";
+        String reghost = "localhost";
+        String mshost = "226.0.0.0";
         
         try {
             squadra = args[0];
             host = InetAddress.getByName(args[1]);
             portaTCP = Integer.parseInt(args[2]);
-            tshost = args[3];
+            reghost = args[3];
+            mshost = args[4];
         } catch (NumberFormatException e) {
             System.err.println("Numero di porta non valido, uso il default (" +
                     portaTCP + ").");
@@ -84,16 +86,16 @@ public class Client {
             System.err.println("Nome host non valido, uso il default (" +
                     host + ").");
         }
-
+        
         Client client = new Client(host, portaTCP);
-        client.go(squadra, tshost);
+        client.go(squadra, reghost, mshost);
     }
 
-    private void go(String squadra, String tshost) {
+    private void go(String squadra, String reghost, String mshost) {
         while (possible) {
             try {
                 // non facciamoci chiamare spammer.
-                Thread.sleep(125L);
+                Thread.sleep(130L);
 
                 // in che stato siamo? neat trick per switchare su Strings.
                 switch (State.valueOf(this.state)) {
@@ -106,27 +108,25 @@ public class Client {
                                 this.state = "fucked";
                                 break;
                             case 0:
+                                Thread.sleep(100L);
                                 CountDownLatch l = new CountDownLatch(1);
-                                Thread ts = new Thread(new TargetsServer(l));
+                                send(5);
+                                Msg firstTargets = recv();
+                                Thread ts = new Thread(new TargetsServer(l, firstTargets.data, mshost));
                                 ts.start();
                                 l.await();
                             default:
                                 Thread.sleep(250L);
                                 Registry registry;
-                                registry = LocateRegistry.getRegistry(tshost);
+                                registry = LocateRegistry.getRegistry(reghost);
                                 this.stub = (Targets) registry.lookup("Targets");
-                                this.state = "peeking";
+                                this.state = "whereami";
                         }
                         break;
                     case peeking:
                         send(5);
                         Msg targetsMsg = recv();
-                        while (targetsMsg.data.hasRemaining()) {
-                            Coordinates xy =
-                                    new Coordinates(targetsMsg.data.getShort(),
-                                                    targetsMsg.data.getShort());
-                            this.stub.add(xy);
-                        }
+                        this.stub.compare(targetsMsg.data);
                         this.state = "whereami";
                         break;
                     case whereami:
