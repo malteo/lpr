@@ -28,7 +28,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
-import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -44,11 +43,19 @@ public class TargetsServer implements Runnable, Targets
           Collections.synchronizedList(new ArrayList<Coordinates>());
   private final CountDownLatch latch;
   private final String reghost;
-  private final String mshost;
+  private final String mcgroup;
   private final String name;
 
-  TargetsServer(CountDownLatch l, ByteBuffer data, String reghost,
-                String mshost, String name)
+  /**
+   * 
+   * @param l Il latch on/off
+   * @param data I dati TARGETS
+   * @param reghost L'indirizzo dell'host del Registry
+   * @param mcgroup Il gruppo multicast
+   * @param name Il nome del bind (quello della squadra)
+   */
+  public TargetsServer(CountDownLatch l, ByteBuffer data, String reghost,
+                String mcgroup, String name)
   {
     this.latch = l;
 
@@ -58,7 +65,7 @@ public class TargetsServer implements Runnable, Targets
       this.targets.add(xy);
     }
     this.reghost = reghost;
-    this.mshost = mshost;
+    this.mcgroup = mcgroup;
     this.name = name;
   }
 
@@ -94,6 +101,13 @@ public class TargetsServer implements Runnable, Targets
   public synchronized void compare(byte[] newTargetsArray)
           throws RemoteException
   {
+    /**
+     * Il metodo riceve come parametro un byte[], che viene incluso
+     * in un ByteBuffer, che ritorna gli short per creare i
+     * Coordinates da inserire nell'ArrayList
+     *
+     * newTargetsBB(newTargetsArray) => newTargets
+     */
     ByteBuffer newTargetsBB = ByteBuffer.wrap(newTargetsArray);
     ArrayList<Coordinates> newTargets = new ArrayList<Coordinates>();
 
@@ -139,7 +153,7 @@ public class TargetsServer implements Runnable, Targets
   {
     try
     {
-      InetAddress ia = InetAddress.getByName(mshost);
+      InetAddress ia = InetAddress.getByName("226.0.0.0");
       MulticastSocket ms = new MulticastSocket(4001);
       ms.joinGroup(ia);
       byte[] msg = new byte[7];
@@ -172,11 +186,11 @@ public class TargetsServer implements Runnable, Targets
     try
     {
       Targets stub = (Targets) UnicastRemoteObject.exportObject(this, 0);
-      // FIXME: cambiare registro!
-      Random r = new Random();
-      Registry registry = LocateRegistry.createRegistry(1099);
+      Registry registry = LocateRegistry.getRegistry(reghost);
       registry.rebind(name, stub);
       System.err.println(this.name + " Server ready.");
+      
+      // questo rilascia i thread che stanno in await() sul latch
       latch.countDown();
       this.fetchTargets();
     }

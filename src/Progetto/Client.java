@@ -73,11 +73,12 @@ public class Client
    */
   public static void main(String[] args) throws UnknownHostException
   {
+    // i valori di default
     InetAddress host = InetAddress.getLocalHost();
     int portaTCP = 4000;
     String squadra = "A-Team";
     String reghost = "localhost";
-    String mshost = "226.0.0.0";
+    String mcgroup = "226.0.0.0";
 
     try
     {
@@ -85,7 +86,7 @@ public class Client
       host = InetAddress.getByName(args[1]);
       portaTCP = Integer.parseInt(args[2]);
       reghost = args[3];
-      mshost = args[4];
+      mcgroup = args[4];
     }
     catch (NumberFormatException e)
     {
@@ -101,25 +102,27 @@ public class Client
                           + host + ").");
     }
     Client client = new Client(host, portaTCP);
-    client.go(squadra, reghost, mshost);
+    client.go(squadra, reghost, mcgroup);
   }
 
-  private void go(String squadra, String reghost, String mshost)
+  private void go(String squadra, String reghost, String mcgroup)
   {
     while (possible)
     {
       try
       {
         // non facciamoci chiamare spammer.
-        Thread.sleep(130L);
+        Thread.sleep(150L);
         
-        // in che stato siamo? neat trick per switchare su Strings.
+        // in che stato siamo? neat trick per switchare su String.
         switch (State.valueOf(this.state))
         {
           case registering:
             send(7, squadra);
             Msg id = recv();
 
+            // id.data.getShort() è il numero assegnato dal server al
+            // giocatore registrato.
             switch (id.data.getShort())
             {
               case -1:
@@ -135,9 +138,21 @@ public class Client
           case first:
             send(5);
             Msg firstTargets = recv();
+
+            /*
+             * A CountDownLatch initialized with a count of one
+             * serves as a simple on/off latch, or gate: all threads
+             * invoking await wait at the gate until it is opened by
+             * a thread invoking CountDownLatch.countDown.
+             */
             CountDownLatch l = new CountDownLatch(1);
+
+            /*
+             * passo al TargetServer il latch inizializzato a 1,
+             * 
+             */
             TargetsServer ts = new TargetsServer(l, firstTargets.data, reghost,
-                                                 mshost, squadra);
+                                                 mcgroup, squadra);
             Thread t = new Thread(ts);
             t.start();
             l.await();
@@ -182,11 +197,11 @@ public class Client
             this.stub.remove(this.target);
             this.state = "peeking";
             break;
-//          case pinging:
-//            send(1);
-//            Msg pong = recv();
-//            this.state = "moving";
-//            break;
+          case pinging:
+            send(1);
+            Msg pong = recv();
+            this.state = "moving";
+            break;
           default:
             this.possible = false;
             System.err.println("FFFUUUUU-");
@@ -194,7 +209,7 @@ public class Client
       }
       catch (BufferUnderflowException e)
       {
-        // TODO: scrivere qualcosa di intelligente, probabilmente il server è uscito.
+        System.err.println("Probabilmente il server è uscito.");
         this.state = "fucked";
       }
       catch (NotBoundException ex)
