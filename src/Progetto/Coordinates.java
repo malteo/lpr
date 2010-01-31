@@ -22,73 +22,104 @@ import java.nio.ByteBuffer;
  *
  * @author Matteo Giordano <ilmalteo at gmail.com>
  */
-public class Coordinates implements Serializable {
+public class Coordinates implements Serializable
+{
+  private final short x;
+  private final short y;
 
-    private final short x;
-    private final short y;
-
-    @Override
-    public boolean equals(Object obj) {
-        if (obj == null) {
-            return false;
-        }
-        if (getClass() != obj.getClass()) {
-            return false;
-        }
-        final Coordinates other = (Coordinates) obj;
-        if (this.x != other.x) {
-            return false;
-        }
-        if (this.y != other.y) {
-            return false;
-        }
-        return true;
+  @Override
+  public boolean equals(Object obj)
+  {
+    if (obj == null)
+    {
+      return false;
     }
-
-    @Override
-    public int hashCode() {
-        int hash = 3;
-        hash = 41 * hash + this.x;
-        hash = 41 * hash + this.y;
-        return hash;
+    if (getClass() != obj.getClass())
+    {
+      return false;
     }
-
-    /**
-     * Crea un punto a partire dalle coordinate x e y espresse numericamente.
-     *
-     * @param x Ascisse
-     * @param y Ordinate
-     */
-    public Coordinates(short x, short y) {
-        this.x = x;
-        this.y = y;
+    final Coordinates other = (Coordinates) obj;
+    if (this.x != other.x)
+    {
+      return false;
     }
-
-    /**
-     * Crea un punto a partire da un ByteBuffer che contiene le coordinate.
-     *
-     * @param bb Il ByteBuffer che contiene le coordinate.
-     */
-    public Coordinates(ByteBuffer bb) {
-        this.x = bb.getShort();
-        this.y = bb.getShort();
+    if (this.y != other.y)
+    {
+      return false;
     }
+    return true;
+  }
 
-    /**
-     * X getter
-     *
-     * @return Il valore delle ascisse del punto.
-     */
-    public short getX() {
-        return x;
-    }
+  @Override
+  public int hashCode()
+  {
+    int hash = 3;
+    hash = 41 * hash + this.x;
+    hash = 41 * hash + this.y;
+    return hash;
+  }
 
-    /**
-     * Y getter
-     * 
-     * @return Il valore delle ordinate del punto.
-     */
-    public short getY() {
-        return y;
+  /**
+   * Crea un punto a partire dalle coordinate x e y espresse numericamente.
+   *
+   * @param x Ascisse
+   * @param y Ordinate
+   */
+  public Coordinates(short x, short y)
+  {
+    this.x = x;
+    this.y = y;
+  }
+
+  /**
+   * Crea un punto a partire da un ByteBuffer che contiene le coordinate.
+   *
+   * @param bb Il ByteBuffer che contiene le coordinate.
+   */
+  public Coordinates(ByteBuffer bb)
+  {
+    this.x = bb.getShort();
+    this.y = bb.getShort();
+  }
+
+  /**
+   * X getter
+   *
+   * @return Il valore delle ascisse del punto.
+   */
+  public short getX()
+  {
+    return x;
+  }
+
+  /**
+   * Y getter
+   *
+   * @return Il valore delle ordinate del punto.
+   */
+  public short getY()
+  {
+    return y;
+  }
+
+  /**
+   * Calcola un'approssimazione della distanza con un altro punto.
+   *
+   * @see http://it.wikipedia.org/wiki/Distanza_euclidea#Approssimazione_2D_per_applicazioni_informatiche
+   * @param pq
+   * @return
+   */
+  public double distance(Coordinates pq)
+  {
+    double dx = Math.abs(this.getX() - pq.getX());
+    double dy = Math.abs(this.getY() - pq.getY());
+    if (dy > dx)
+    {
+      return 0.41 * dx + 0.941246 * dy;
     }
+    else
+    {
+      return 0.41 * dy + 0.941246 * dx;
+    }
+  }
 }
