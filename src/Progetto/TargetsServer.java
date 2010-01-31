@@ -153,7 +153,7 @@ public class TargetsServer implements Runnable, Targets
   {
     try
     {
-      InetAddress ia = InetAddress.getByName("226.0.0.0");
+      InetAddress ia = InetAddress.getByName(mcgroup);
       MulticastSocket ms = new MulticastSocket(4001);
       ms.joinGroup(ia);
       byte[] msg = new byte[7];
