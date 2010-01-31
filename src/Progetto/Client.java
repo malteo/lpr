@@ -121,8 +121,10 @@ public class Client
             send(7, squadra);
             Msg id = recv();
 
-            // id.data.getShort() è il numero assegnato dal server al
-            // giocatore registrato.
+            /*
+             * id.data.getShort() è il numero assegnato dal server al
+             * giocatore registrato.
+             */
             switch (id.data.getShort())
             {
               case -1:
@@ -140,21 +142,24 @@ public class Client
             Msg firstTargets = recv();
 
             /*
-             * A CountDownLatch initialized with a count of one
-             * serves as a simple on/off latch, or gate: all threads
-             * invoking await wait at the gate until it is opened by
-             * a thread invoking CountDownLatch.countDown.
+             * A CountDownLatch initialized with a count of one serves as a
+             * simple on/off latch, or gate: all threads invoking await wait at
+             * the gate until it is opened by a thread invoking
+             * CountDownLatch.countDown.
              */
             CountDownLatch l = new CountDownLatch(1);
 
             /*
-             * passo al TargetServer il latch inizializzato a 1,
-             * 
+             * passo al TargetServer il latch inizializzato a 1, i
+             * TARGETS ricevuti dal server e i parametri da linea di
+             * comando (o i default)
              */
             TargetsServer ts = new TargetsServer(l, firstTargets.data, reghost,
                                                  mcgroup, squadra);
             Thread t = new Thread(ts);
             t.start();
+
+            // aspetta il countDown() sul latch parte di TargetsServer
             l.await();
             this.state = "whereami";
             break;
